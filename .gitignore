@@ -1,0 +1,4 @@
+/result*
+# qemu stuff
+/control.socket
+/var.img
