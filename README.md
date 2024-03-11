@@ -1,6 +1,6 @@
-# keycloak-nix
+# keycloak-rust
 
-committing minor crimes against nix to build keycloak from source. also the open api spec is here for future reasons™
+committing minor crimes against nix to build keycloak from source and be able to build a rust crate for admin API access
 
 # license
 

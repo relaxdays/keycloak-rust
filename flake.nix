@@ -16,13 +16,11 @@
     microvm,
   }:
     {
-      overlays.default = self: super: let
+      overlays.default = self: super: {
         keycloak-builder = self.callPackage ./nix/keycloak {
           keycloak = super.keycloak;
         };
-      in rec {
-        inherit keycloak-builder;
-        keycloak = keycloak-builder {
+        keycloak = self.keycloak-builder {
           version = "unstable-2024-03-03";
           rev = "14a12d106aeefa3c2e27c9b37bf9f294caacd2be";
           hash = "sha256-hGOazvkVTVWVo6/YCq2iu3RwgSTf9ihTIDE4QQy87hE=";
@@ -35,7 +33,8 @@
           ];
           depsHash = "sha256-AdH1GR+Ifc4+U2AoG9IoRd7BE8GJOm/SzH3imjN6ZkA=";
         };
-        keycloak-openapi = keycloak.api;
+        keycloak-openapi = self.keycloak.api;
+        keycloak-api-rust = self.callPackage ./nix/crate {};
       };
     }
     // flake-utils.lib.eachDefaultSystem (system: let
@@ -46,12 +45,18 @@
     in {
       packages = rec {
         keycloak = pkgs.keycloak;
+        api-rust = pkgs.keycloak-api-rust;
         openapi = pkgs.runCommand "keycloak-openapi" {} ''
           mkdir -p $out
           cp -r ${pkgs.keycloak-openapi}/* $out/
         '';
         vm-test = self.nixosConfigurations.${system}.keycloak-vm.config.microvm.declaredRunner;
         default = keycloak;
+      };
+      devShells.default = pkgs.mkShell {
+        inputsFrom = [pkgs.keycloak-api-rust];
+        OPENAPI_SPEC_PATH = "${pkgs.keycloak-openapi}/openapi.json";
+        RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
       };
       nixosConfigurations.keycloak-vm = nixpkgs.lib.nixosSystem {
         inherit system;
@@ -100,15 +105,32 @@
           }
           ({
             config,
+            lib,
             pkgs,
             ...
-          }: {
+          }: let
+            kcEnv = {
+              KEYCLOAK_BASE_URL = "http://localhost";
+              KEYCLOAK_REALM = "master";
+              KEYCLOAK_USERNAME = "admin";
+              KEYCLOAK_PASSWORD = "Start123!";
+            };
+            wrappedApiExamplePkg = let
+              wrapperArgs = lib.flatten (lib.mapAttrsToList (env: val: ["--set-default" env val]) kcEnv);
+            in
+              pkgs.runCommand "kc-rust-wrapped" {nativeBuildInputs = with pkgs; [makeWrapper];} ''
+                mkdir -p $out/bin
+                makeWrapper "${pkgs.keycloak-api-rust}/bin/keycloak-api-example" "$out/bin/keycloak-api-example" \
+                  ${lib.escapeShellArgs wrapperArgs}
+              '';
+          in {
             services.keycloak = {
               enable = true;
               package = pkgs.keycloak;
-              initialAdminPassword = "Start123!";
+              initialAdminPassword = kcEnv.KEYCLOAK_PASSWORD;
               settings = {
                 #hostname = config.networking.hostName;
+                health-enabled = true;
                 # these are dev-mode settings
                 hostname = "";
                 http-enabled = true;
@@ -121,6 +143,51 @@
               };
             };
             networking.firewall.allowedTCPPorts = [80];
+            environment.systemPackages = [
+              wrappedApiExamplePkg
+            ];
+            systemd.services.keycloak-rust-test = {
+              after = ["keycloak-ready.service"];
+              wants = ["keycloak-ready.service"];
+              wantedBy = ["multi-user.target"];
+              serviceConfig = {
+                Type = "oneshot";
+              };
+              environment = kcEnv;
+              script = ''
+                keycloak-api-example
+              '';
+              path = with pkgs; [keycloak-api-rust];
+            };
+
+            # simple health-check/wait service
+            # probably we should find some way to make keycloak use sd_notify
+            systemd.services.keycloak-ready = {
+              after = ["keycloak.service"];
+              bindsTo = ["keycloak.service"];
+              wantedBy = ["keycloak.service"];
+              serviceConfig = {
+                Type = "oneshot";
+                RemainAfterExit = true;
+              };
+              script = ''
+                set +e
+                while true; do
+                  status="$(set -o pipefail; curl -v http://localhost/health | jq -r '.status')"
+                  exit="$?"
+                  if [[ "$exit" -eq 0 ]]; then
+                    if [[ "$status" == "UP" ]]; then
+                      exit 0
+                    else
+                      exit 1
+                    fi
+                  fi
+                  echo "waiting..."
+                  sleep 1
+                done
+              '';
+              path = with pkgs; [curl jq];
+            };
           })
         ];
       };

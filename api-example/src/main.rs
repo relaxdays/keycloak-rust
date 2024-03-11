@@ -1,0 +1,24 @@
+use keycloak_api::{auth::DirectGrantAuth, Keycloak};
+
+#[tokio::main]
+async fn main() -> color_eyre::eyre::Result<()> {
+    color_eyre::install()?;
+
+    let auth = DirectGrantAuth::new(
+        "admin-cli".into(),
+        None,
+        &std::env::var("KEYCLOAK_USERNAME")?,
+        &std::env::var("KEYCLOAK_PASSWORD")?,
+    );
+    let kc = Keycloak::new(
+        &std::env::var("KEYCLOAK_BASE_URL")?,
+        &std::env::var("KEYCLOAK_REALM")?,
+        auth,
+    )
+    .await?;
+    let info = kc.server_info().await?;
+    println!("server info: {info:#?}");
+    let info = kc.realm_info().await?;
+    println!("realm info: {info:#?}");
+    Ok(())
+}

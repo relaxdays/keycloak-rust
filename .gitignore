@@ -1,4 +1,7 @@
+# nix stuf
 /result*
 # qemu stuff
 /control.socket
 /var.img
+# rust stuff
+/target
