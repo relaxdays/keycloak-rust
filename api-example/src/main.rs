@@ -20,5 +20,20 @@ async fn main() -> color_eyre::eyre::Result<()> {
     println!("server info: {info:#?}");
     let info = kc.realm_info().await?;
     println!("realm info: {info:#?}");
+    let Err(e) = kc.with_client(test).await else {
+        color_eyre::eyre::bail!("expected invalid realm call to fail!");
+    };
+    println!("{:?}", color_eyre::Report::new(e));
+    kc.with_client_boxed_future(|client| Box::pin(async move { test(client).await }))
+        .await
+        .expect_err("same thing");
+    Ok(())
+}
+
+async fn test(client: &keycloak_api::rest::Client) -> Result<(), keycloak_api::Error> {
+    client
+        .get_realm("this_realm_is_invalid_and_does_not_exist")
+        .await
+        .map_err(keycloak_api::error::progenitor)?;
     Ok(())
 }

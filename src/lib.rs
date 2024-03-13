@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod error;
 pub mod rest;
+pub mod util;
 
 use self::auth::AuthenticationProvider;
 use std::time::Duration;
@@ -8,6 +9,7 @@ use tokio::sync::RwLock;
 
 pub type Error = self::error::KeycloakError;
 pub use self::error::ErrorKind;
+use self::util::WithClientAsyncFn;
 
 #[derive(Debug, Clone)]
 pub struct KeycloakConfig {
@@ -99,6 +101,56 @@ impl<A: AuthenticationProvider> Keycloak<A> {
         let mut api_client = self.api_client.write().await;
         api_client.client = new_client;
         Ok(())
+    }
+
+    /// execute a callback with the inner low-level api client
+    /// this method also ensures that access tokens are refreshed if necessary
+    ///
+    /// `async fn`s can be passed directly like this:
+    ///
+    /// ```no_run
+    /// async fn callback(client: &keycloak_api::rest::Client) -> Result<(), keycloak_api::Error> {
+    ///     // do something with the client
+    ///     Ok(())
+    /// }
+    ///
+    /// # async fn test() {
+    /// # let keycloak = keycloak_api::Keycloak::new("http://localhost", "master", keycloak_api::auth::AccessTokenAuth::new("token".into())).await.unwrap();
+    /// let result = keycloak.with_client(callback).await;
+    /// # }
+    /// ```
+    pub async fn with_client<F, R>(&self, cbk: F) -> Result<R, crate::Error>
+    where
+        F: for<'a> WithClientAsyncFn<'a, R>,
+    {
+        self.refresh_if_necessary().await?;
+        let client = self.api_client.read().await;
+        cbk.call(&client).await
+    }
+
+    /// execute a callback with the inner low-level api client
+    /// this is a wrapper around [`with_client`](Keycloak::with_client) but with dynamic dispatch
+    ///
+    /// this can be used for closures like this:
+    ///
+    /// ```no_run
+    /// # async fn test() {
+    /// # let keycloak = keycloak_api::Keycloak::new("http://localhost", "master", keycloak_api::auth::AccessTokenAuth::new("token".into())).await.unwrap();
+    /// let result = keycloak.with_client_boxed_future(|client| Box::pin(async move {
+    ///     // do something with the client
+    ///     Ok(())
+    /// })).await;
+    /// # }
+    /// ```
+    pub async fn with_client_boxed_future<F, R: 'static>(&self, cbk: F) -> Result<R, crate::Error>
+    where
+        F: for<'a> FnOnce(
+            &'a crate::rest::Client,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<R, crate::Error>> + Send + 'a>,
+        >,
+    {
+        self.with_client(cbk).await
     }
 
     pub async fn server_info(&self) -> Result<crate::rest::ServerInfo, crate::Error> {
