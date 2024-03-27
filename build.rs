@@ -3,9 +3,7 @@ use std::fs::File;
 use openapiv3::OpenAPI;
 
 fn main() {
-    let src = std::env::var("OPENAPI_SPEC_PATH").unwrap_or_else(|_| "./openapi.json".into());
-    println!("cargo:rerun-if-env-changed=OPENAPI_SPEC_PATH");
-    println!("cargo:rerun-if-changed={src}");
+    let src = find_spec_path();
     let file = File::open(src).unwrap();
     let mut spec = serde_json::from_reader(file).unwrap();
     fix_spec(&mut spec);
@@ -18,6 +16,28 @@ fn main() {
     let mut out_file = std::path::Path::new(&std::env::var("OUT_DIR").unwrap()).to_path_buf();
     out_file.push("keycloak-api-gen.rs");
     std::fs::write(out_file, content).unwrap();
+}
+
+fn find_spec_path() -> std::path::PathBuf {
+    println!("cargo:rerun-if-env-changed=OPENAPI_SPEC_PATH");
+    let path = if let Ok(src) = std::env::var("OPENAPI_SPEC_PATH") {
+        std::path::PathBuf::from(src)
+    } else {
+        println!("cargo:rerun-if-env-changed=KEYCLOAK_VERSION");
+        let mut path = std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
+        let kc_version = std::env::var("KEYCLOAK_VERSION").unwrap_or_else(|_| "unstable".into());
+        path.extend(["api-spec", kc_version.as_str(), "openapi.json"]);
+        path
+    };
+
+    if path.exists() {
+        // we're constructing the path from nothing but rust strings, so this must be valid utf8
+        println!("cargo:rerun-if-changed={}", path.to_str().unwrap());
+        return path;
+    }
+    panic!(
+        "openapi spec file not found! set OPENAPI_SPEC_PATH to the openapi.json file from keycloak."
+    );
 }
 
 // all of this is just one giant hack to make sure this works
