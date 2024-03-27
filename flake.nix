@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    microvm.url = "github:999eagle/microvm.nix/fix/crash-on-sgx";
+    microvm.url = "github:astro/microvm.nix";
     microvm.inputs.nixpkgs.follows = "nixpkgs";
     microvm.inputs.flake-utils.follows = "flake-utils";
   };
@@ -21,17 +21,17 @@
           keycloak = super.keycloak;
         };
         keycloak = self.keycloak-builder {
-          version = "unstable-2024-03-03";
-          rev = "14a12d106aeefa3c2e27c9b37bf9f294caacd2be";
-          hash = "sha256-hGOazvkVTVWVo6/YCq2iu3RwgSTf9ihTIDE4QQy87hE=";
+          version = "unstable-2024-03-26";
+          rev = "be32f8b1bfb4fa709aa48552a1bbfdcf9fab6299";
+          hash = "sha256-HRqPk4pw4ol3GcP2X9O59TBgR+PrZKSaz7pq6wtx5QM=";
           patches = [
             # https://github.com/keycloak/keycloak/pull/26867
             (self.fetchpatch {
-              url = "https://github.com/keycloak/keycloak/commit/76a4f00d2964d64ae7a6bcbd5622b8250fa87ecd.patch";
-              hash = "sha256-z+TImkTa9GjFZ7anRtoEGjKeRoosJGEqsC5VLWyjUFo=";
+              url = "https://github.com/keycloak/keycloak/pull/26867/commits/08339da50f39734b051e2a64e2c310e8f5eef4a7.patch";
+              hash = "sha256-KewvoZjqxSd30gs19aSU5PhWvrF0F1SXisKKhHTL9mM=";
             })
           ];
-          depsHash = "sha256-AdH1GR+Ifc4+U2AoG9IoRd7BE8GJOm/SzH3imjN6ZkA=";
+          depsHash = "sha256-dOnnQUbtlUkNQ/v8jBUj1QtdtYQqi0fFOTW80jDUEvI=";
         };
         keycloak-openapi = self.keycloak.api;
         keycloak-api-rust = self.callPackage ./nix/crate {};
