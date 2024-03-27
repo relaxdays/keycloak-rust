@@ -74,7 +74,7 @@ pub fn reqwest(err: reqwest::Error) -> KeycloakError {
 }
 
 fn from_response(status: u16, bytes: Bytes) -> KeycloakError {
-    if let Some(body) = serde_json::from_slice::<KeycloakErrorBody>(&bytes).ok() {
+    if let Ok(body) = serde_json::from_slice::<KeycloakErrorBody>(&bytes) {
         KeycloakError::new(
             ErrorKind::ResponseError {
                 status,

@@ -55,6 +55,7 @@
       };
       devShells.default = pkgs.mkShell {
         inputsFrom = [pkgs.keycloak-api-rust];
+        packages = [pkgs.clippy];
         OPENAPI_SPEC_PATH = "${pkgs.keycloak-openapi}/openapi.json";
         RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
       };

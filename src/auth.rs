@@ -80,7 +80,6 @@ struct Tokens {
     expiry: Instant,
     refresh_token: String,
     refresh_expiry: Instant,
-    session_state: String,
 }
 
 pub struct DirectGrantAuth {
@@ -130,7 +129,6 @@ impl DirectGrantAuth {
             expiry: time + Duration::from_secs(token.expires_in.into()),
             refresh_token: token.refresh_token,
             refresh_expiry: time + Duration::from_secs(token.refresh_expires_in.into()),
-            session_state: token.session_state,
         })
     }
 }
@@ -139,7 +137,7 @@ impl AuthenticationProvider for DirectGrantAuth {
     async fn login(&mut self, cfg: &KeycloakConfig) -> Result<(), crate::Error> {
         let request = crate::rest::TokenRequest::new_password(
             &self.client_id,
-            self.client_secret.as_ref().map(String::as_str),
+            self.client_secret.as_deref(),
             &self.username,
             &self.password,
         );
@@ -152,7 +150,7 @@ impl AuthenticationProvider for DirectGrantAuth {
         let new_tokens = if let Some(tokens) = &self.tokens {
             let request = crate::rest::TokenRequest::new_refresh(
                 &self.client_id,
-                self.client_secret.as_ref().map(String::as_str),
+                self.client_secret.as_deref(),
                 &tokens.refresh_token,
             );
             self.request_tokens(cfg, &request).await?
