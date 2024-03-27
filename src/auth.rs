@@ -13,13 +13,19 @@ pub trait AuthenticationProvider {
     ///
     /// this is usually only called exactly once from within [`Keycloak::new`](crate::Keycloak::new). afterwards,
     /// [`access_token`](AuthenticationProvider::access_token) should return the obtained access token.
-    fn login(&mut self, cfg: &KeycloakConfig) -> impl Future<Output = Result<(), crate::Error>>;
+    fn login(
+        &mut self,
+        cfg: &KeycloakConfig,
+    ) -> impl Future<Output = Result<(), crate::Error>> + Send;
     /// refresh access token
     ///
     /// this is called whenever [`needs_refresh`](AuthenticationProvider::needs_refresh) returns `true` before sending
     /// a request to keycloak. this should re-authenticate to keycloak and obtain a new access token to be returned by
     /// subsequent calls to [`access_token`](AuthenticationProvider::access_token).
-    fn refresh(&mut self, cfg: &KeycloakConfig) -> impl Future<Output = Result<(), crate::Error>>;
+    fn refresh(
+        &mut self,
+        cfg: &KeycloakConfig,
+    ) -> impl Future<Output = Result<(), crate::Error>> + Send;
     /// get access token
     fn access_token(&self) -> Option<&str>;
     /// check whether the current access token is still valid

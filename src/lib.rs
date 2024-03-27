@@ -1,3 +1,4 @@
+pub mod api;
 pub mod auth;
 pub mod error;
 pub mod rest;
@@ -11,6 +12,11 @@ pub type Error = self::error::KeycloakError;
 pub use self::error::ErrorKind;
 use self::util::WithClientAsyncFn;
 
+pub mod prelude {
+    pub use crate::api::*;
+    pub use crate::Keycloak;
+}
+
 #[derive(Debug, Clone)]
 pub struct KeycloakConfig {
     pub base_url: String,
@@ -18,6 +24,8 @@ pub struct KeycloakConfig {
 }
 
 /// high-level keycloak api client
+///
+/// see also the extension traits in the [api] module for available methods
 pub struct Keycloak<A: AuthenticationProvider> {
     config: KeycloakConfig,
     /// low-level api client
@@ -169,17 +177,5 @@ impl<A: AuthenticationProvider> Keycloak<A> {
         let bytes = response.bytes().await?;
         let data = serde_json::from_slice(&bytes).map_err(crate::error::deserialize)?;
         Ok(data)
-    }
-
-    pub async fn realm_info(
-        &self,
-    ) -> Result<crate::rest::types::RealmRepresentation, crate::Error> {
-        self.refresh_if_necessary().await?;
-        let client = self.api_client.read().await;
-        let response = client
-            .get_realm(&self.config.realm)
-            .await
-            .map_err(crate::error::progenitor)?;
-        Ok(response.into_inner())
     }
 }

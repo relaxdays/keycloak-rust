@@ -1,4 +1,4 @@
-use keycloak_api::{auth::DirectGrantAuth, Keycloak};
+use keycloak_api::{auth::DirectGrantAuth, prelude::*};
 
 #[tokio::main]
 async fn main() -> color_eyre::eyre::Result<()> {
