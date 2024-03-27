@@ -34,6 +34,8 @@ pub enum ErrorKind {
     KeycloakError(KeycloakErrorBody),
     #[error("api error")]
     ApiError,
+    #[error("{0}")]
+    NotFound(String),
     #[error("unspecified error")]
     Other,
 }

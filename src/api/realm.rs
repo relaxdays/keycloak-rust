@@ -8,6 +8,7 @@ pub trait KeycloakRealmExt {
 }
 
 impl<A: crate::AuthenticationProvider + Send + Sync> KeycloakRealmExt for crate::Keycloak<A> {
+    #[tracing::instrument(skip(self))]
     async fn realm_info(&self) -> Result<RealmRepresentation, Error> {
         self.refresh_if_necessary().await?;
         let client = self.api_client.read().await;
