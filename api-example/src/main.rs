@@ -23,10 +23,15 @@ async fn main() -> color_eyre::eyre::Result<()> {
     let Err(e) = kc.with_client(test).await else {
         color_eyre::eyre::bail!("expected invalid realm call to fail!");
     };
-    println!("{:?}", color_eyre::Report::new(e));
+    println!(
+        "report for expected error:\n{:?}",
+        color_eyre::Report::new(e)
+    );
     kc.with_client_boxed_future(|client| Box::pin(async move { test(client).await }))
         .await
         .expect_err("same thing");
+
+    println!("tests passed");
     Ok(())
 }
 
