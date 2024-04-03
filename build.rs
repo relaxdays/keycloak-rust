@@ -73,7 +73,11 @@ fn fix_operation(op: &mut Option<openapiv3::Operation>, r#type: &str, path: &str
             .replace("roles/{role-name}", "role-by-name")
             .replace("roles-by-id/{role-id}", "role-by-id")
             .replace("sessions/{session}", "session")
-            .replace("users/{user-id}", "user");
+            .replace("users/{user-id}", "user")
+            .replace("permission/by-id/{policy-id}", "permission-by-id")
+            .replace("permission/by-type/{policy-type}", "permission-by-type")
+            .replace("policy/by-id/{policy-id}", "policy-by-id")
+            .replace("policy/by-type/{policy-type}", "policy-by-type");
 
         op.operation_id = Some(format!("{}_{}", r#type, path.replace('/', "_")));
     }

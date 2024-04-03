@@ -92,6 +92,46 @@ pub trait KeycloakClientExt {
         client_uuid: &str,
     ) -> impl Future<Output = Result<Vec<AbstractPolicyRepresentation>>> + Send;
 
+    /// get a client authorization policy
+    #[cfg(feature = "unstable")]
+    fn client_authz_policy(
+        &self,
+        client_uuid: &str,
+        policy_id: &str,
+    ) -> impl Future<Output = Result<PolicyRepresentation>> + Send;
+
+    /// get the authorization policies associated with a client authorization policy
+    #[cfg(feature = "unstable")]
+    fn client_authz_policy_associated_policies(
+        &self,
+        client_uuid: &str,
+        policy_id: &str,
+    ) -> impl Future<Output = Result<Vec<PolicyRepresentation>>> + Send;
+
+    /// get the authorization policies dependent on a client authorization policy
+    #[cfg(feature = "unstable")]
+    fn client_authz_policy_dependent_policies(
+        &self,
+        client_uuid: &str,
+        policy_id: &str,
+    ) -> impl Future<Output = Result<Vec<PolicyRepresentation>>> + Send;
+
+    /// get the authorization resources for a client authorization policy
+    #[cfg(feature = "unstable")]
+    fn client_authz_policy_resources(
+        &self,
+        client_uuid: &str,
+        policy_id: &str,
+    ) -> impl Future<Output = Result<Vec<ResourceRepresentation>>> + Send;
+
+    /// get the authorization policies associated with a client authorization policy
+    #[cfg(feature = "unstable")]
+    fn client_authz_policy_scopes(
+        &self,
+        client_uuid: &str,
+        policy_id: &str,
+    ) -> impl Future<Output = Result<Vec<ScopeRepresentation>>> + Send;
+
     /// update a dedicated protocol mapper configured in a client's dedicated client scope
     ///
     /// the `id` must reference an existing protocol mapper in the given [`ProtocolMapperRepresentation`]
@@ -416,6 +456,121 @@ impl<A: crate::AuthenticationProvider + Send + Sync> KeycloakClientExt for crate
                 .map_err(crate::error::progenitor)?
                 .into_inner()
         });
+        Ok(response)
+    }
+
+    #[cfg(feature = "unstable")]
+    async fn client_authz_policy(
+        &self,
+        client_uuid: &str,
+        policy_id: &str,
+    ) -> Result<PolicyRepresentation> {
+        self.refresh_if_necessary().await?;
+        let api_client = self.api_client.read().await;
+
+        tracing::debug!("querying client authz policy");
+        let response = api_client
+            .get_realm_client_authz_resource_server_policy_by_id(
+                &self.config.realm,
+                client_uuid,
+                policy_id,
+                None,
+            )
+            .await
+            .map_err(crate::error::progenitor)?
+            .into_inner();
+        Ok(response)
+    }
+
+    #[cfg(feature = "unstable")]
+    #[tracing::instrument(skip(self))]
+    async fn client_authz_policy_associated_policies(
+        &self,
+        client_uuid: &str,
+        policy_id: &str,
+    ) -> Result<Vec<PolicyRepresentation>> {
+        self.refresh_if_necessary().await?;
+        let api_client = self.api_client.read().await;
+
+        tracing::debug!("querying client authz policy associated policies");
+        let response = api_client
+            .get_realm_client_authz_resource_server_policy_by_id_associated_policies(
+                &self.config.realm,
+                client_uuid,
+                policy_id,
+            )
+            .await
+            .map_err(crate::error::progenitor)?
+            .into_inner();
+        Ok(response)
+    }
+
+    #[cfg(feature = "unstable")]
+    #[tracing::instrument(skip(self))]
+    async fn client_authz_policy_dependent_policies(
+        &self,
+        client_uuid: &str,
+        policy_id: &str,
+    ) -> Result<Vec<PolicyRepresentation>> {
+        self.refresh_if_necessary().await?;
+        let api_client = self.api_client.read().await;
+
+        tracing::debug!("querying client authz policy dependent policies");
+        let response = api_client
+            .get_realm_client_authz_resource_server_policy_by_id_dependent_policies(
+                &self.config.realm,
+                client_uuid,
+                policy_id,
+            )
+            .await
+            .map_err(crate::error::progenitor)?
+            .into_inner();
+        Ok(response)
+    }
+
+    #[cfg(feature = "unstable")]
+    #[tracing::instrument(skip(self))]
+    async fn client_authz_policy_resources(
+        &self,
+        client_uuid: &str,
+        policy_id: &str,
+    ) -> Result<Vec<ResourceRepresentation>> {
+        self.refresh_if_necessary().await?;
+        let api_client = self.api_client.read().await;
+
+        tracing::debug!("querying client authz policy resources");
+        let response = api_client
+            .get_realm_client_authz_resource_server_policy_by_id_resources(
+                &self.config.realm,
+                client_uuid,
+                policy_id,
+            )
+            .await
+            .map_err(crate::error::progenitor)?
+            .into_inner();
+        Ok(response)
+    }
+
+    #[cfg(feature = "unstable")]
+    #[tracing::instrument(skip(self))]
+    async fn client_authz_policy_scopes(
+        &self,
+        client_uuid: &str,
+        policy_id: &str,
+    ) -> Result<Vec<ScopeRepresentation>> {
+        self.refresh_if_necessary().await?;
+        let api_client = self.api_client.read().await;
+
+        tracing::debug!("querying client authz policy scopes");
+        let response = api_client
+            .get_realm_client_authz_resource_server_policy_by_id_scopes(
+                &self.config.realm,
+                client_uuid,
+                policy_id,
+            )
+            .await
+            .map_err(crate::error::progenitor)?
+            .into_inner();
         Ok(response)
     }
 
