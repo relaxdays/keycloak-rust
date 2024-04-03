@@ -5,25 +5,27 @@ use crate::{
     Error,
 };
 
+type Result<T, E = Error> = std::result::Result<T, E>;
+
 /// group-related methods of the keycloak api
 pub trait KeycloakGroupExt {
     /// get a single group matching the given name
     fn group_by_name(
         &self,
         group_name: &str,
-    ) -> impl Future<Output = Result<GroupRepresentation, Error>> + Send;
+    ) -> impl Future<Output = Result<GroupRepresentation>> + Send;
 
     /// get a single group using its uuid
     fn group_by_id(
         &self,
         group_id: &str,
-    ) -> impl Future<Output = Result<GroupRepresentation, Error>> + Send;
+    ) -> impl Future<Output = Result<GroupRepresentation>> + Send;
 
     /// get the realm roles associated with a group
     fn group_realm_roles(
         &self,
         group_id: &str,
-    ) -> impl Future<Output = Result<Vec<RoleRepresentation>, Error>> + Send;
+    ) -> impl Future<Output = Result<Vec<RoleRepresentation>>> + Send;
 
     /// add new realm roles to a group
     #[allow(clippy::ptr_arg)] // generated api client requires &Vec<T>
@@ -31,7 +33,7 @@ pub trait KeycloakGroupExt {
         &self,
         group_id: &str,
         roles: &Vec<RoleRepresentation>,
-    ) -> impl Future<Output = Result<(), Error>> + Send;
+    ) -> impl Future<Output = Result<()>> + Send;
 
     /// remove existing realm roles from a group
     #[allow(clippy::ptr_arg)] // generated api client requires &Vec<T>
@@ -39,12 +41,12 @@ pub trait KeycloakGroupExt {
         &self,
         group_id: &str,
         roles: &Vec<RoleRepresentation>,
-    ) -> impl Future<Output = Result<(), Error>> + Send;
+    ) -> impl Future<Output = Result<()>> + Send;
 }
 
 impl<A: crate::AuthenticationProvider + Send + Sync> KeycloakGroupExt for crate::Keycloak<A> {
     #[tracing::instrument(skip(self))]
-    async fn group_by_name(&self, group_name: &str) -> Result<GroupRepresentation, Error> {
+    async fn group_by_name(&self, group_name: &str) -> Result<GroupRepresentation> {
         self.refresh_if_necessary().await?;
         let api_client = self.api_client.read().await;
 
@@ -80,7 +82,7 @@ impl<A: crate::AuthenticationProvider + Send + Sync> KeycloakGroupExt for crate:
     }
 
     #[tracing::instrument(skip(self))]
-    async fn group_by_id(&self, group_id: &str) -> Result<GroupRepresentation, Error> {
+    async fn group_by_id(&self, group_id: &str) -> Result<GroupRepresentation> {
         self.refresh_if_necessary().await?;
         let api_client = self.api_client.read().await;
 
@@ -94,7 +96,7 @@ impl<A: crate::AuthenticationProvider + Send + Sync> KeycloakGroupExt for crate:
     }
 
     #[tracing::instrument(skip(self))]
-    async fn group_realm_roles(&self, group_id: &str) -> Result<Vec<RoleRepresentation>, Error> {
+    async fn group_realm_roles(&self, group_id: &str) -> Result<Vec<RoleRepresentation>> {
         self.refresh_if_necessary().await?;
         let api_client = self.api_client.read().await;
 
@@ -112,7 +114,7 @@ impl<A: crate::AuthenticationProvider + Send + Sync> KeycloakGroupExt for crate:
         &self,
         group_id: &str,
         roles: &Vec<RoleRepresentation>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         self.refresh_if_necessary().await?;
         let api_client = self.api_client.read().await;
 
@@ -130,7 +132,7 @@ impl<A: crate::AuthenticationProvider + Send + Sync> KeycloakGroupExt for crate:
         &self,
         group_id: &str,
         roles: &Vec<RoleRepresentation>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         self.refresh_if_necessary().await?;
         let api_client = self.api_client.read().await;
 
