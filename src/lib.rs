@@ -13,7 +13,7 @@ pub use self::error::ErrorKind;
 use self::util::WithClientAsyncFn;
 
 pub mod prelude {
-    pub use crate::api::*;
+    pub use crate::api::{KeycloakGroupExt, KeycloakRealmExt};
     pub use crate::Keycloak;
 }
 
