@@ -1,3 +1,5 @@
+#[macro_use]
+mod macros;
 pub mod api;
 pub mod auth;
 pub mod error;
@@ -13,7 +15,7 @@ pub use self::error::ErrorKind;
 use self::util::WithClientAsyncFn;
 
 pub mod prelude {
-    pub use crate::api::{KeycloakGroupExt, KeycloakRealmExt};
+    pub use crate::api::{KeycloakClientExt, KeycloakGroupExt, KeycloakRealmExt};
     pub use crate::Keycloak;
 }
 

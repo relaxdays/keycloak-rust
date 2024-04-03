@@ -13,6 +13,12 @@ pub struct KeycloakError {
     source: Option<BoxError>,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum ResourceType {
+    Client,
+    Group,
+}
+
 #[derive(Debug, Clone, Error)]
 pub enum ErrorKind {
     #[error("failed to deserialize")]
@@ -34,8 +40,12 @@ pub enum ErrorKind {
     KeycloakError(KeycloakErrorBody),
     #[error("api error")]
     ApiError,
-    #[error("{0}")]
-    NotFound(String),
+    #[error("requested {0} resource doesn't exist")]
+    NotFound(ResourceType),
+    #[error("multiple matching {0} resources returned")]
+    NotUnique(ResourceType),
+    #[error("missing id")]
+    MissingId,
     #[error("unspecified error")]
     Other,
 }
@@ -145,5 +155,14 @@ impl Display for KeycloakErrorBody {
             f.write_fmt(format_args!(": {description}"))?;
         }
         Ok(())
+    }
+}
+
+impl Display for ResourceType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Client => write!(f, "client"),
+            Self::Group => write!(f, "group"),
+        }
     }
 }

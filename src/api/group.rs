@@ -77,7 +77,7 @@ impl<A: crate::AuthenticationProvider + Send + Sync> KeycloakGroupExt for crate:
             groups = sub_groups;
         }
         Err(Error::new_kind(crate::ErrorKind::NotFound(
-            "group not found".into(),
+            crate::error::ResourceType::Group,
         )))
     }
 
