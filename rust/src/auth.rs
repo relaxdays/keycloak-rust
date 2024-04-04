@@ -38,6 +38,54 @@ pub trait AuthenticationProvider {
     fn can_refresh(&self) -> bool;
 }
 
+/// abstraction layer allowing to use any of the standard implementations of [`AuthenticationProvider`]
+///
+/// as [`AuthenticationProvider`] is not object safe, creating something like
+/// `Keycloak<Box<dyn AuthentcationProvider>>` won't work and we need this enum to work around this
+pub enum Auth {
+    AccessToken(AccessTokenAuth),
+    DirectGrant(DirectGrantAuth),
+}
+
+impl AuthenticationProvider for Auth {
+    async fn login(&mut self, cfg: &KeycloakConfig) -> Result<(), crate::Error> {
+        match self {
+            Self::AccessToken(a) => a.login(cfg).await,
+            Self::DirectGrant(a) => a.login(cfg).await,
+        }
+    }
+    async fn refresh(&mut self, cfg: &KeycloakConfig) -> Result<(), crate::Error> {
+        match self {
+            Self::AccessToken(a) => a.refresh(cfg).await,
+            Self::DirectGrant(a) => a.refresh(cfg).await,
+        }
+    }
+    fn access_token(&self) -> Option<&str> {
+        match self {
+            Self::AccessToken(a) => a.access_token(),
+            Self::DirectGrant(a) => a.access_token(),
+        }
+    }
+    fn token_is_valid(&self) -> bool {
+        match self {
+            Self::AccessToken(a) => a.token_is_valid(),
+            Self::DirectGrant(a) => a.token_is_valid(),
+        }
+    }
+    fn needs_refresh(&self) -> bool {
+        match self {
+            Self::AccessToken(a) => a.needs_refresh(),
+            Self::DirectGrant(a) => a.needs_refresh(),
+        }
+    }
+    fn can_refresh(&self) -> bool {
+        match self {
+            Self::AccessToken(a) => a.can_refresh(),
+            Self::DirectGrant(a) => a.can_refresh(),
+        }
+    }
+}
+
 pub struct AccessTokenAuth {
     access_token: String,
 }
