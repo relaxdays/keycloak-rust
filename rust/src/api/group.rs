@@ -1,7 +1,7 @@
 use std::future::Future;
 
 use crate::{
-    rest::types::{GroupRepresentation, RoleRepresentation},
+    rest::types::{GroupRepresentation, RoleRepresentation, UserRepresentation},
     Error,
 };
 
@@ -20,6 +20,13 @@ pub trait KeycloakGroupExt {
         &self,
         group_id: &str,
     ) -> impl Future<Output = Result<GroupRepresentation>> + Send;
+
+    /// get all users in a group
+    fn group_users(
+        &self,
+        group_id: &str,
+        brief_representation: Option<bool>,
+    ) -> impl Future<Output = Result<Vec<UserRepresentation>>> + Send;
 
     /// get the realm roles associated with a group
     fn group_realm_roles(
@@ -93,6 +100,33 @@ impl<A: crate::AuthenticationProvider + Send + Sync> KeycloakGroupExt for crate:
             .map_err(crate::error::progenitor)?
             .into_inner();
         Ok(response)
+    }
+
+    #[tracing::instrument(skip(self, brief_representation))]
+    async fn group_users(
+        &self,
+        group_id: &str,
+        brief_representation: Option<bool>,
+    ) -> Result<Vec<UserRepresentation>> {
+        self.refresh_if_necessary().await?;
+        let api_client = self.api_client.read().await;
+
+        tracing::debug!("querying users in group");
+        let users = paginate_api!(|first, max| {
+            api_client
+                .get_realm_group_members(
+                    &self.config.realm,
+                    group_id,
+                    brief_representation,
+                    Some(first),
+                    Some(max),
+                )
+                .await
+                .map_err(crate::error::progenitor)?
+                .into_inner()
+        });
+
+        Ok(users)
     }
 
     #[tracing::instrument(skip(self))]
