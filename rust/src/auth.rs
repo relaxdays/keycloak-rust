@@ -165,11 +165,18 @@ impl DirectGrantAuth {
             "{}/realms/{}/protocol/openid-connect/token",
             cfg.base_url, cfg.realm
         );
-        let response = self.client.post(url).form(&request).send().await?;
+        let response = self
+            .client
+            .post(url)
+            .form(&request)
+            .send()
+            .await
+            .map_err(crate::error::reqwest)?;
         if !response.status().is_success() {
             return Err(crate::error::error_response(response).await);
         }
-        let token: crate::rest::TokenResponse = response.json().await?;
+        let token: crate::rest::TokenResponse =
+            response.json().await.map_err(crate::error::reqwest)?;
 
         let time = Instant::now();
         Ok(Tokens {

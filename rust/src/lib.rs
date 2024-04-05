@@ -171,12 +171,13 @@ impl<A: AuthenticationProvider> Keycloak<A> {
         let response = client
             .get(format!("{}/admin/serverinfo", self.config.base_url))
             .send()
-            .await?;
+            .await
+            .map_err(crate::error::reqwest)?;
         if !response.status().is_success() {
             return Err(crate::error::error_response(response).await);
         }
 
-        let bytes = response.bytes().await?;
+        let bytes = response.bytes().await.map_err(crate::error::reqwest)?;
         let data = serde_json::from_slice(&bytes).map_err(crate::error::deserialize)?;
         Ok(data)
     }

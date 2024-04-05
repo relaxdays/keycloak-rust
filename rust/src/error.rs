@@ -1,16 +1,15 @@
 use std::fmt::Display;
 
 use bytes::Bytes;
+use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-
-pub(crate) type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
 #[derive(Debug, Error)]
 #[error("{kind}")]
 pub struct KeycloakError {
     kind: ErrorKind,
-    source: Option<BoxError>,
+    source: Option<InnerError>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -33,7 +32,7 @@ pub enum ErrorKind {
     Authentication,
     #[error("http response error (status code {status})")]
     ResponseError {
-        status: u16,
+        status: StatusCode,
         response: Option<bytes::Bytes>,
     },
     #[error("{0}")]
@@ -51,16 +50,16 @@ pub enum ErrorKind {
 }
 
 /// JSON body returned by Keycloak for errors
-#[derive(Debug, Clone, Deserialize, Serialize, Error)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct KeycloakErrorBody {
     pub error: String,
     pub error_description: Option<String>,
 }
 
 impl KeycloakError {
-    pub fn new<E>(kind: ErrorKind, inner: Option<E>) -> Self
+    pub(crate) fn new<E>(kind: ErrorKind, inner: Option<E>) -> Self
     where
-        E: Into<BoxError>,
+        E: Into<InnerError>,
     {
         Self {
             kind,
@@ -68,12 +67,28 @@ impl KeycloakError {
         }
     }
 
-    pub fn new_kind(kind: ErrorKind) -> Self {
+    pub(crate) fn new_kind(kind: ErrorKind) -> Self {
         Self { kind, source: None }
     }
 
     pub fn kind(&self) -> &ErrorKind {
         &self.kind
+    }
+
+    /// get the http response status code associated with this error (if any)
+    pub fn status(&self) -> Option<StatusCode> {
+        if let ErrorKind::ResponseError { status, .. } = self.kind() {
+            return Some(*status);
+        }
+        if let Some(inner) = self.source.as_ref() {
+            match inner {
+                InnerError::Keycloak(e) => return e.status(),
+                InnerError::Progenitor(e) => return e.status(),
+                InnerError::Reqwest(e) => return e.status(),
+                _ => {}
+            }
+        }
+        None
     }
 }
 
@@ -85,14 +100,14 @@ pub fn reqwest(err: reqwest::Error) -> KeycloakError {
     KeycloakError::new(ErrorKind::Reqwest, Some(err))
 }
 
-fn from_response(status: u16, bytes: Bytes) -> KeycloakError {
+fn from_response(status: StatusCode, bytes: Bytes) -> KeycloakError {
     if let Ok(body) = serde_json::from_slice::<KeycloakErrorBody>(&bytes) {
         KeycloakError::new(
             ErrorKind::ResponseError {
                 status,
                 response: Some(bytes),
             },
-            Some(body),
+            Some(KeycloakError::new_kind(ErrorKind::KeycloakError(body))),
         )
     } else {
         KeycloakError::new_kind(ErrorKind::ResponseError {
@@ -105,10 +120,10 @@ fn from_response(status: u16, bytes: Bytes) -> KeycloakError {
 pub async fn error_response(resp: reqwest::Response) -> KeycloakError {
     let status = resp.status();
     match resp.bytes().await {
-        Ok(bytes) => from_response(status.into(), bytes),
+        Ok(bytes) => from_response(status, bytes),
         Err(e) => KeycloakError::new(
             ErrorKind::ResponseError {
-                status: status.into(),
+                status,
                 response: None,
             },
             Some(e),
@@ -117,35 +132,24 @@ pub async fn error_response(resp: reqwest::Response) -> KeycloakError {
 }
 
 pub fn progenitor(err: progenitor_client::Error) -> KeycloakError {
-    let inner: BoxError = if let Some(status) = err.status() {
+    let inner: InnerError = if let Some(status) = err.status() {
         match err {
             progenitor_client::Error::InvalidResponsePayload(bytes, _) => {
-                Box::new(from_response(status.into(), bytes))
+                from_response(status, bytes).into()
             }
-            _ => Box::new(KeycloakError::new(
+            _ => KeycloakError::new(
                 ErrorKind::ResponseError {
-                    status: status.into(),
+                    status,
                     response: None,
                 },
                 Some(err),
-            )),
+            )
+            .into(),
         }
     } else {
-        Box::new(err)
+        err.into()
     };
     KeycloakError::new(ErrorKind::ApiError, Some(inner))
-}
-
-impl From<serde_json::Error> for KeycloakError {
-    fn from(value: serde_json::Error) -> Self {
-        deserialize(value)
-    }
-}
-
-impl From<reqwest::Error> for KeycloakError {
-    fn from(value: reqwest::Error) -> Self {
-        reqwest(value)
-    }
 }
 
 impl Display for KeycloakErrorBody {
@@ -164,5 +168,65 @@ impl Display for ResourceType {
             Self::Client => write!(f, "client"),
             Self::Group => write!(f, "group"),
         }
+    }
+}
+
+/// enum of possible inner errors for a [`KeycloakError`]
+#[derive(Debug)]
+pub enum InnerError {
+    // boxed to prevent `KeycloakError` containing itself
+    // boxed here instead of in `KeycloakError` to prevent a double box for `Other`
+    Keycloak(Box<KeycloakError>),
+    Serde(serde_json::Error),
+    Progenitor(progenitor_client::Error<()>),
+    Reqwest(reqwest::Error),
+    Other(Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl InnerError {
+    /// explicitly allow using a boxed and type-erased error as inner error
+    ///
+    /// this is only required until we can use ✨specialization✨ to implement
+    /// `From<E: std::error::Error> for InnerError` while also keeping the existing,
+    /// more specific implementations
+    pub fn from_any<E: std::error::Error + Send + Sync + 'static>(err: E) -> Self {
+        Self::Other(Box::new(err))
+    }
+}
+
+impl std::ops::Deref for InnerError {
+    type Target = dyn std::error::Error + Send + Sync;
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Keycloak(e) => e,
+            Self::Serde(e) => e,
+            Self::Progenitor(e) => e,
+            Self::Reqwest(e) => e,
+            Self::Other(e) => e.deref(),
+        }
+    }
+}
+
+impl From<KeycloakError> for InnerError {
+    fn from(value: KeycloakError) -> Self {
+        Self::Keycloak(Box::new(value))
+    }
+}
+
+impl From<serde_json::Error> for InnerError {
+    fn from(value: serde_json::Error) -> Self {
+        Self::Serde(value)
+    }
+}
+
+impl From<progenitor_client::Error<()>> for InnerError {
+    fn from(value: progenitor_client::Error<()>) -> Self {
+        Self::Progenitor(value)
+    }
+}
+
+impl From<reqwest::Error> for InnerError {
+    fn from(value: reqwest::Error) -> Self {
+        Self::Reqwest(value)
     }
 }
