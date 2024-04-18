@@ -16,6 +16,7 @@ pub struct KeycloakError {
 pub enum ResourceType {
     Client,
     Group,
+    User,
 }
 
 #[derive(Debug, Clone, Error)]
@@ -167,6 +168,7 @@ impl Display for ResourceType {
         match self {
             Self::Client => write!(f, "client"),
             Self::Group => write!(f, "group"),
+            Self::User => write!(f, "user"),
         }
     }
 }

@@ -15,7 +15,9 @@ pub use self::error::ErrorKind;
 use self::util::WithClientAsyncFn;
 
 pub mod prelude {
-    pub use crate::api::{KeycloakClientExt, KeycloakGroupExt, KeycloakRealmExt, KeycloakRoleExt};
+    pub use crate::api::{
+        KeycloakClientExt, KeycloakGroupExt, KeycloakRealmExt, KeycloakRoleExt, KeycloakUserExt,
+    };
     pub use crate::Keycloak;
 }
 
