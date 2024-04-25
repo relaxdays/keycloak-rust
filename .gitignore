@@ -1,6 +1,7 @@
 # nix stuf
 /result*
 # qemu stuff
+/shared
 /control.socket
 /var.img
 # rust stuff

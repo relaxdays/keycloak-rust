@@ -36,6 +36,109 @@
         keycloak-openapi = self.keycloak.api;
         keycloak-api-rust = self.callPackage ./nix/crate {};
       };
+      nixosModules.keycloak-vm = {pkgs, ...}: {
+        services.keycloak = {
+          enable = true;
+          package = pkgs.keycloak;
+          initialAdminPassword = "Start123!";
+          settings = {
+            #hostname = config.networking.hostName;
+            health-enabled = true;
+            # these are dev-mode settings
+            hostname = "";
+            http-enabled = true;
+            hostname-strict = false;
+            hostname-debug = true;
+          };
+          database = {
+            createLocally = true;
+            passwordFile = "${pkgs.writeText "pwd" "somelongrandomstringidontcare"}";
+          };
+        };
+        systemd.services.keycloak = {
+          path = with pkgs; [curl jq];
+          postStart = ''
+            set +e
+            while true; do
+              if ! kill -0 "$MAINPID"; then exit 1; fi
+              status="$(set -o pipefail; curl -Ss http://localhost/health | jq -r '.status')"
+              exit="$?"
+              if [[ "$exit" -eq 0 && "$status" == "UP" ]]; then break; fi
+              sleep 1
+            done
+            set -e
+          '';
+        };
+        networking.firewall.allowedTCPPorts = [80];
+      };
+      lib.build-keycloak-vm = {
+        system,
+        extraModules,
+        ...
+      }:
+        nixpkgs.lib.nixosSystem {
+          inherit system;
+          modules =
+            [
+              microvm.nixosModules.microvm
+              self.nixosModules.keycloak-vm
+              {
+                networking.hostName = "keycloak-vm";
+                users.users.root.password = "root";
+                services.getty.autologinUser = "root";
+                systemd.network.networks."90-fallback" = {
+                  matchConfig.Name = ["en*" "eth*"];
+                  domains = ["~."];
+                  DHCP = "yes";
+                };
+                microvm = {
+                  hypervisor = "qemu";
+                  socket = "control.socket";
+                  preStart = ''
+                    mkdir -p shared
+                  '';
+                  shares = [
+                    {
+                      proto = "9p";
+                      tag = "ro-store";
+                      source = "/nix/store";
+                      mountPoint = "/nix/.ro-store";
+                    }
+                    {
+                      proto = "9p";
+                      tag = "meow";
+                      source = "./shared/";
+                      mountPoint = "/opt/shared";
+                    }
+                  ];
+                  volumes = [
+                    {
+                      mountPoint = "/var";
+                      image = "var.img";
+                      size = 256;
+                    }
+                  ];
+                  interfaces = [
+                    {
+                      type = "user";
+                      id = "veth-kc";
+                      mac = "02:00:00:00:00:01";
+                    }
+                  ];
+                  forwardPorts = [
+                    {
+                      from = "host";
+                      host.port = 8080;
+                      guest.port = 80;
+                    }
+                  ];
+                  vcpu = 2;
+                  mem = 1024;
+                };
+              }
+            ]
+            ++ extraModules;
+        };
     }
     // flake-utils.lib.eachDefaultSystem (system: let
       pkgs = import nixpkgs {
@@ -59,51 +162,10 @@
         OPENAPI_SPEC_PATH = "${pkgs.keycloak-openapi}/openapi.json";
         RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
       };
-      nixosConfigurations.keycloak-vm = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.keycloak-vm = self.lib.build-keycloak-vm {
         inherit system;
-        modules = [
-          microvm.nixosModules.microvm
-          {
-            nixpkgs.pkgs = pkgs;
-            networking.hostName = "keycloak-vm";
-            users.users.root.password = "root";
-            services.getty.autologinUser = "root";
-            microvm = {
-              hypervisor = "qemu";
-              socket = "control.socket";
-              shares = [
-                {
-                  proto = "9p";
-                  tag = "ro-store";
-                  source = "/nix/store";
-                  mountPoint = "/nix/.ro-store";
-                }
-              ];
-              volumes = [
-                {
-                  mountPoint = "/var";
-                  image = "var.img";
-                  size = 256;
-                }
-              ];
-              interfaces = [
-                {
-                  type = "user";
-                  id = "veth-kc";
-                  mac = "02:00:00:00:00:01";
-                }
-              ];
-              forwardPorts = [
-                {
-                  from = "host";
-                  host.port = 8080;
-                  guest.port = 80;
-                }
-              ];
-              vcpu = 2;
-              mem = 1024;
-            };
-          }
+        extraModules = [
+          {nixpkgs.pkgs = pkgs;}
           ({
             config,
             lib,
@@ -125,31 +187,12 @@
                   ${lib.escapeShellArgs wrapperArgs}
               '';
           in {
-            services.keycloak = {
-              enable = true;
-              package = pkgs.keycloak;
-              initialAdminPassword = kcEnv.KEYCLOAK_PASSWORD;
-              settings = {
-                #hostname = config.networking.hostName;
-                health-enabled = true;
-                # these are dev-mode settings
-                hostname = "";
-                http-enabled = true;
-                hostname-strict = false;
-                hostname-debug = true;
-              };
-              database = {
-                createLocally = true;
-                passwordFile = "${pkgs.writeText "pwd" "somelongrandomstringidontcare"}";
-              };
-            };
-            networking.firewall.allowedTCPPorts = [80];
             environment.systemPackages = [
               wrappedApiExamplePkg
             ];
             systemd.services.keycloak-rust-test = {
-              after = ["keycloak-ready.service"];
-              wants = ["keycloak-ready.service"];
+              after = ["keycloak.service"];
+              wants = ["keycloak.service"];
               wantedBy = ["multi-user.target"];
               serviceConfig = {
                 Type = "oneshot";
@@ -159,35 +202,6 @@
                 keycloak-api-example
               '';
               path = with pkgs; [keycloak-api-rust];
-            };
-
-            # simple health-check/wait service
-            # probably we should find some way to make keycloak use sd_notify
-            systemd.services.keycloak-ready = {
-              after = ["keycloak.service"];
-              bindsTo = ["keycloak.service"];
-              wantedBy = ["keycloak.service"];
-              serviceConfig = {
-                Type = "oneshot";
-                RemainAfterExit = true;
-              };
-              script = ''
-                set +e
-                while true; do
-                  status="$(set -o pipefail; curl -v http://localhost/health | jq -r '.status')"
-                  exit="$?"
-                  if [[ "$exit" -eq 0 ]]; then
-                    if [[ "$status" == "UP" ]]; then
-                      exit 0
-                    else
-                      exit 1
-                    fi
-                  fi
-                  echo "waiting..."
-                  sleep 1
-                done
-              '';
-              path = with pkgs; [curl jq];
             };
           })
         ];
