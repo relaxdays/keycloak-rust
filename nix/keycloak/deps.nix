@@ -44,14 +44,8 @@ stdenvNoCC.mkDerivation {
     pnpm config set store-dir $out/pnpm --global
 
     echo "Preinstalling and patching npm packages"
-    pushd themes/src/main/resources/theme/keycloak.v2/account/src
-      pnpm i --frozen-lockfile --no-optional --ignore-scripts
-      patchShebangs --host node_modules/
-    popd
-    pushd themes/src/main/resources/theme/keycloak/common/resources
-      pnpm i --frozen-lockfile --no-optional --ignore-scripts
-      patchShebangs --host node_modules/.bin
-    popd
+    pnpm i --frozen-lockfile --ignore-scripts
+    patchShebangs --host node_modules/.bin
   '';
 
   buildPhase = ''

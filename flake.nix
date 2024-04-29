@@ -7,6 +7,8 @@
     microvm.url = "github:astro/microvm.nix";
     microvm.inputs.nixpkgs.follows = "nixpkgs";
     microvm.inputs.flake-utils.follows = "flake-utils";
+
+    nixpkgs-pnpm-update.url = "github:nixos/nixpkgs/pull/305026/head";
   };
 
   outputs = {
@@ -14,16 +16,24 @@
     nixpkgs,
     flake-utils,
     microvm,
-  }:
+    ...
+  } @ inputs:
     {
       overlays.default = self: super: {
+        nodePackages =
+          super.nodePackages
+          // {
+            # keycloak currently requires pnpm 9 which is not yet merged in nixpkgs
+            pnpm = inputs.nixpkgs-pnpm-update.legacyPackages.${super.system}.nodePackages.pnpm;
+          };
+
         keycloak-builder = self.callPackage ./nix/keycloak {
           keycloak = super.keycloak;
         };
         keycloak = self.keycloak-builder {
-          version = "unstable-2024-03-26";
-          rev = "be32f8b1bfb4fa709aa48552a1bbfdcf9fab6299";
-          hash = "sha256-HRqPk4pw4ol3GcP2X9O59TBgR+PrZKSaz7pq6wtx5QM=";
+          version = "unstable-2024-04-29";
+          rev = "ae1aaef96c80563c7d78ed617556fbbd91d7ad30";
+          hash = "sha256-xu7Xnr6y0ZAQDRd0S/OmWzKUSYINiftEmAWvH3CQ4p8=";
           patches = [
             # https://github.com/keycloak/keycloak/pull/26867
             (self.fetchpatch {
@@ -31,7 +41,7 @@
               hash = "sha256-KewvoZjqxSd30gs19aSU5PhWvrF0F1SXisKKhHTL9mM=";
             })
           ];
-          depsHash = "sha256-dOnnQUbtlUkNQ/v8jBUj1QtdtYQqi0fFOTW80jDUEvI=";
+          depsHash = "sha256-2WaBQ2MIJxNqYmgOfRxEEHJ8N+9gO/a3Z1pNB7xmEjo=";
         };
         keycloak-openapi = self.keycloak.api;
         keycloak-api-rust = self.callPackage ./nix/crate {};
@@ -61,7 +71,7 @@
             set +e
             while true; do
               if ! kill -0 "$MAINPID"; then exit 1; fi
-              status="$(set -o pipefail; curl -Ss http://localhost/health | jq -r '.status')"
+              status="$(set -o pipefail; curl -Ss http://localhost:9000/health | jq -r '.status')"
               exit="$?"
               if [[ "$exit" -eq 0 && "$status" == "UP" ]]; then break; fi
               sleep 1
