@@ -84,7 +84,7 @@
       lib.build-keycloak-vm = {
         system,
         extraModules,
-        ...
+        sharedHostDirectory ? false,
       }:
         nixpkgs.lib.nixosSystem {
           inherit system;
@@ -104,23 +104,25 @@
                 microvm = {
                   hypervisor = "qemu";
                   socket = "control.socket";
-                  preStart = ''
+                  preStart = nixpkgs.lib.optionalString sharedHostDirectory ''
                     mkdir -p shared
                   '';
-                  shares = [
-                    {
-                      proto = "9p";
-                      tag = "ro-store";
-                      source = "/nix/store";
-                      mountPoint = "/nix/.ro-store";
-                    }
+                  shares =
+                    [
+                      {
+                        proto = "9p";
+                        tag = "ro-store";
+                        source = "/nix/store";
+                        mountPoint = "/nix/.ro-store";
+                      }
+                    ]
+                    ++ nixpkgs.lib.optional sharedHostDirectory
                     {
                       proto = "9p";
                       tag = "meow";
                       source = "./shared/";
                       mountPoint = "/opt/shared";
-                    }
-                  ];
+                    };
                   volumes = [
                     {
                       mountPoint = "/var";
@@ -174,6 +176,7 @@
       };
       nixosConfigurations.keycloak-vm = self.lib.build-keycloak-vm {
         inherit system;
+        sharedHostDirectory = true;
         extraModules = [
           {nixpkgs.pkgs = pkgs;}
           ({
