@@ -4,7 +4,7 @@ use crate::{
     rest::types::{
         AbstractPolicyRepresentation, ClientRepresentation, ClientScopeRepresentation,
         PolicyRepresentation, ProtocolMapperRepresentation, ResourceRepresentation,
-        ResourceServerRepresentation, ScopeRepresentation,
+        ResourceServerRepresentation, RolePolicyRepresentation, ScopeRepresentation,
     },
     Error, ErrorKind,
 };
@@ -99,6 +99,14 @@ pub trait KeycloakClientExt {
         client_uuid: &str,
         policy_id: &str,
     ) -> impl Future<Output = Result<PolicyRepresentation>> + Send;
+
+    /// update a client authorization policy of type role
+    #[cfg(feature = "unstable")]
+    fn update_client_authz_role_policy(
+        &self,
+        client_uuid: &str,
+        policy: &RolePolicyRepresentation,
+    ) -> impl Future<Output = Result<()>> + Send;
 
     /// get the authorization policies associated with a client authorization policy
     #[cfg(feature = "unstable")]
@@ -460,6 +468,7 @@ impl<A: crate::AuthenticationProvider + Send + Sync> KeycloakClientExt for crate
     }
 
     #[cfg(feature = "unstable")]
+    #[tracing::instrument(skip(self))]
     async fn client_authz_policy(
         &self,
         client_uuid: &str,
@@ -480,6 +489,37 @@ impl<A: crate::AuthenticationProvider + Send + Sync> KeycloakClientExt for crate
             .map_err(crate::error::progenitor)?
             .into_inner();
         Ok(response)
+    }
+
+    #[cfg(feature = "unstable")]
+    #[tracing::instrument(skip(self))]
+    async fn update_client_authz_role_policy(
+        &self,
+        client_uuid: &str,
+        policy: &RolePolicyRepresentation,
+    ) -> Result<()> {
+        let Some(policy_id) = policy.policy.id.as_ref() else {
+            return Err(Error::new_kind(ErrorKind::MissingId));
+        };
+        self.refresh_if_necessary().await?;
+        let api_client = self.api_client.read().await;
+
+        tracing::debug!("updating authz policy");
+        let serde_json::Value::Object(map) = serde_json::to_value(policy).unwrap() else {
+            panic!();
+        };
+        api_client
+            .put_realm_client_authz_resource_server_policy_by_type_policy_id(
+                &self.config.realm,
+                client_uuid,
+                "role",
+                policy_id,
+                &map,
+            )
+            .await
+            .map_err(crate::error::progenitor)?;
+
+        Ok(())
     }
 
     #[cfg(feature = "unstable")]

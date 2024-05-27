@@ -50,6 +50,10 @@ fn fix_spec(spec: &mut OpenAPI) {
         fix_operation(&mut item.post, "post", path);
         fix_operation(&mut item.put, "put", path);
         fix_operation(&mut item.delete, "delete", path);
+
+        if path == "/admin/realms/{realm}/clients/{client-uuid}/authz/resource-server/policy/by-type/{policy-type}/{policy-id}" {
+            fix_stringly_typed_json_body(&mut item.put);
+        }
     }
 
     let components = spec.components.as_mut().unwrap();
@@ -196,6 +200,22 @@ fn parameter_is_array(parameter: &openapiv3::ReferenceOr<openapiv3::Parameter>) 
         }
         _ => false,
     }
+}
+
+// some keycloak operations are defined to take a string as body, but actually they expect an object
+// one example are different policy types where the concrete object they expect depends on the type given
+// in the request path, so the api cannot specify the actual type to use
+// string still means that the generated client will wrap a string parameter as another json string which
+// keycloak obviously doesn't handle correctly
+fn fix_stringly_typed_json_body(operation: &mut Option<openapiv3::Operation>) {
+    let op = operation.as_mut().unwrap();
+    let body = op.request_body.as_mut().unwrap().get_item_mut().unwrap();
+    let json_body = body.content.get_mut("application/json").unwrap();
+    let schema = json_body.schema.as_mut().unwrap().get_item_mut().unwrap();
+    schema.schema_kind =
+        openapiv3::SchemaKind::Type(openapiv3::Type::Object(openapiv3::ObjectType {
+            ..Default::default()
+        }));
 }
 
 trait RefOrExt<T> {

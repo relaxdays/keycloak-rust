@@ -16,6 +16,9 @@ pub trait KeycloakRoleExt {
         role_name: &str,
     ) -> impl Future<Output = Result<RoleRepresentation>> + Send;
 
+    /// get a single role given its id
+    fn role_by_id(&self, role_id: &str) -> impl Future<Output = Result<RoleRepresentation>> + Send;
+
     /// get direct member groups of a role
     fn groups_in_role(
         &self,
@@ -39,6 +42,20 @@ impl<A: crate::AuthenticationProvider + Send + Sync> KeycloakRoleExt for crate::
         tracing::debug!("querying role by name");
         let response = api_client
             .get_realm_role_by_name(&self.config.realm, role_name)
+            .await
+            .map_err(crate::error::progenitor)?
+            .into_inner();
+        Ok(response)
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn role_by_id(&self, role_id: &str) -> Result<RoleRepresentation> {
+        self.refresh_if_necessary().await?;
+        let api_client = self.api_client.read().await;
+
+        tracing::debug!("querying role by id");
+        let response = api_client
+            .get_realm_role_by_id(&self.config.realm, role_id)
             .await
             .map_err(crate::error::progenitor)?
             .into_inner();

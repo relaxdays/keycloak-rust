@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 pub use self::generated::*;
+// lmao what
+// we're shadowing generated::types here and then re-exporting all the generated types again
+pub mod types;
 
 #[allow(dead_code, clippy::all, clippy::pedantic, clippy::nursery)]
 mod generated {

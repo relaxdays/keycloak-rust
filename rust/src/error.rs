@@ -46,6 +46,10 @@ pub enum ErrorKind {
     NotUnique(ResourceType),
     #[error("missing id")]
     MissingId,
+    #[error("missing field in data: {0}")]
+    MissingField(String),
+    #[error("wrong type (expected {0}, got {1})")]
+    WrongType(String, String),
     #[error("unspecified error")]
     Other,
 }
