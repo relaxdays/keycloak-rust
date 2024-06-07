@@ -2,45 +2,72 @@
   lib,
   stdenv,
   maven,
+  xmlstarlet,
   nodejs,
   nodePackages,
+  pnpm,
+  makeSetupHook,
 }: {
-  mvnArgs,
   src,
   version,
-  deps,
-}:
-stdenv.mkDerivation {
+  pnpmHash,
+  mvnHash,
+}: let
   pname = "keycloak-build";
-  inherit src version;
+  pnpmDeps = pnpm.fetchDeps {
+    inherit src pname version;
+    hash = pnpmHash;
+  };
+  mavenNodejsHook =
+    makeSetupHook {
+      name = "maven-nodejs-hook";
+      substitutions = {
+        node = "${nodejs}";
+        pnpm = "${pnpm}";
+      };
+    }
+    ./maven-nodejs-hook.sh;
+  configurePhase = ''
+    runHook preConfigure
 
-  outputs = ["out" "api"];
+    echo "fixing up versions in pom.xml"
+    # make sure the pom.xml requests exactly the versions of node/pnpm available
+    xmlstarlet edit \
+      --update '/*[local-name()="project"]/*[local-name()="properties"]/*[local-name()="node.version"]' --value "v${nodejs.version}" \
+      --update '/*[local-name()="project"]/*[local-name()="properties"]/*[local-name()="pnpm.version"]' --value "${pnpm.version}" \
+      pom.xml > pom.xml.patched
+    mv pom.xml.patched pom.xml
 
-  nativeBuildInputs = [maven nodejs nodePackages.pnpm];
-
-  preBuild = ''
-    export HOME="$TMPDIR"
-    pnpm config set store-dir ${deps}/pnpm --global
+    runHook postConfigure
   '';
+in
+  maven.buildMavenPackage {
+    inherit src pname version;
 
-  buildPhase = ''
-    runHook preBuild
+    outputs = ["out" "api"];
 
-    mvnDeps="$(cp -dpR ${deps}/.m2 ./ && chmod -R +w .m2 && pwd)"
-    ${lib.concatMapStringsSep "\n" (a: "mvn package --offline --no-snapshot-updates -Dmaven.repo.local=\"$mvnDeps/.m2\" ${a}") mvnArgs}
+    nativeBuildInputs = [
+      xmlstarlet
+      nodejs
+      pnpm
+      mavenNodejsHook
+      pnpm.configHook
+    ];
+    inherit pnpmDeps mvnHash configurePhase;
+    mvnFetchExtraArgs = {
+      inherit pnpmDeps configurePhase;
+    };
+    mvnParameters = "-am -pl quarkus/deployment,quarkus/dist,services -P jboss-release";
+    # keycloak tests are... flaky at best
+    doCheck = false;
 
-    runHook postBuild
-  '';
+    installPhase = ''
+      runHook preInstall
 
-  installPhase = ''
-    runHook preInstall
+      mkdir -p $out $api
+      cp services/target/apidocs-rest/swagger/apidocs/openapi.* $api/
+      cp quarkus/dist/target/keycloak-*.tar.gz $out/keycloak.tar.gz
 
-    mkdir -p $out $api
-    cp services/target/apidocs-rest/swagger/apidocs/openapi.* $api/
-    cp quarkus/dist/target/keycloak-*.tar.gz $out/keycloak.tar.gz
-
-    runHook postInstall
-  '';
-
-  passthru = {inherit deps;};
-}
+      runHook postInstall
+    '';
+  }

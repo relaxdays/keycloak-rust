@@ -1,36 +1,30 @@
 {
   callPackage,
+  applyPatches,
   fetchFromGitHub,
   fetchpatch,
   keycloak,
+  pnpm_9,
 }: {
   version,
   rev ? version,
-  hash ? "",
+  srcHash ? "",
   patches ? [],
   postPatch ? "",
-  depsHash ? "",
+  pnpmHash ? "",
+  mvnHash ? "",
 }: let
-  mvnArgs = [
-    "-DskipTests -am -pl quarkus/deployment,quarkus/dist"
-    # this probably takes half the build time for some reason even though it's much less?
-    "-DskipTests -am -pl services -P jboss-release"
-  ];
-  src = callPackage ./source.nix {} {
+  src = applyPatches {
     src = fetchFromGitHub {
       owner = "keycloak";
       repo = "keycloak";
-      inherit rev hash;
+      inherit rev;
+      hash = srcHash;
     };
     inherit patches postPatch;
   };
-  genDeps = callPackage ./deps.nix {};
-  deps = genDeps {
-    inherit src mvnArgs;
-    hash = depsHash;
-  };
-  build = callPackage ./build.nix {} {
-    inherit version src mvnArgs deps;
+  build = callPackage ./build.nix {pnpm = pnpm_9;} {
+    inherit version src mvnHash pnpmHash;
   };
 in
   keycloak.overrideAttrs (old: {

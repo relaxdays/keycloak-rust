@@ -8,7 +8,7 @@
     microvm.inputs.nixpkgs.follows = "nixpkgs";
     microvm.inputs.flake-utils.follows = "flake-utils";
 
-    nixpkgs-pnpm-update.url = "github:nixos/nixpkgs/pull/305026/head";
+    nixpkgs-pnpm-fetch.url = "github:nixos/nixpkgs/pull/290715/head";
   };
 
   outputs = {
@@ -20,28 +20,24 @@
   } @ inputs:
     {
       overlays.default = self: super: {
-        nodePackages =
-          super.nodePackages
-          // {
-            # keycloak currently requires pnpm 9 which is not yet merged in nixpkgs
-            pnpm = inputs.nixpkgs-pnpm-update.legacyPackages.${super.system}.nodePackages.pnpm;
-          };
+        inherit (inputs.nixpkgs-pnpm-fetch.legacyPackages.${super.system}) pnpm_9;
 
         keycloak-builder = self.callPackage ./nix/keycloak {
           keycloak = super.keycloak;
         };
         keycloak = self.keycloak-builder {
-          version = "unstable-2024-04-29";
-          rev = "ae1aaef96c80563c7d78ed617556fbbd91d7ad30";
-          hash = "sha256-xu7Xnr6y0ZAQDRd0S/OmWzKUSYINiftEmAWvH3CQ4p8=";
+          version = "unstable-2024-06-07";
+          rev = "b59c9d8431a4fda2aea02b53e0a88d74fc3a173d";
+          srcHash = "sha256-uIfP+pYYqxP9J35Fb2N60GInLnHN9lgdGYovQ1WKhjk=";
           patches = [
             # https://github.com/keycloak/keycloak/pull/26867
             (self.fetchpatch {
-              url = "https://github.com/keycloak/keycloak/pull/26867/commits/08339da50f39734b051e2a64e2c310e8f5eef4a7.patch";
+              url = "https://github.com/keycloak/keycloak/pull/26867/commits/4540cec11dc4f9cdd107cb6df8ded8ff41b500b1.patch";
               hash = "sha256-KewvoZjqxSd30gs19aSU5PhWvrF0F1SXisKKhHTL9mM=";
             })
           ];
-          depsHash = "sha256-2WaBQ2MIJxNqYmgOfRxEEHJ8N+9gO/a3Z1pNB7xmEjo=";
+          pnpmHash = "sha256-7HuJFU9TnqUhWtGquNkiJu3tZduEvZ0Z/Vy9nkzppV0=";
+          mvnHash = "sha256-Damu57iwey8V2KL7Gvq0RmYJQPppPiHfFeoeoH6LQMs=";
         };
         keycloak-openapi = self.keycloak.api;
         keycloak-api-rust = self.callPackage ./nix/crate {};

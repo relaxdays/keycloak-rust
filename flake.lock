@@ -29,11 +29,11 @@
         "spectrum": "spectrum"
       },
       "locked": {
-        "lastModified": 1714072181,
-        "narHash": "sha256-MOxTGzM8lgq8uo6zAy6e4ZUdzUpF/eSQPBXeH5G5BtE=",
+        "lastModified": 1717441449,
+        "narHash": "sha256-juxjgmLnFbl+/hhIO2cVtIa6caCO4pLKlZWUMwAOznM=",
         "owner": "astro",
         "repo": "microvm.nix",
-        "rev": "ac28e21ac336dbe01b1f1bcab01fd31db3855e40",
+        "rev": "e3a4dd5b381fb580804105594cc9c71dc45abdb5",
         "type": "github"
       },
       "original": {
@@ -44,11 +44,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1714253743,
-        "narHash": "sha256-mdTQw2XlariysyScCv2tTE45QSU9v/ezLcHJ22f0Nxc=",
+        "lastModified": 1717602782,
+        "narHash": "sha256-pL9jeus5QpX5R+9rsp3hhZ+uplVHscNJh8n8VpqscM0=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "58a1abdbae3217ca6b702f03d3b35125d88a2994",
+        "rev": "e8057b67ebf307f01bdcc8fba94d94f75039d1f6",
         "type": "github"
       },
       "original": {
@@ -58,18 +58,18 @@
         "type": "github"
       }
     },
-    "nixpkgs-pnpm-update": {
+    "nixpkgs-pnpm-fetch": {
       "locked": {
-        "lastModified": 1713436658,
-        "narHash": "sha256-msE1VNIchG8FlKLbHePnTrx+cJ0RjXjF3pHCATAvmvw=",
+        "lastModified": 1717423762,
+        "narHash": "sha256-tXqlFvclDj/gxOw24ak8oXPmXjsXyUHEroge6YWsi0w=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "faddbaa9b33b806cc41bc3e4c288dae03e533706",
+        "rev": "c704c029566aaf525d949b54b8a8d85bb6aab29b",
         "type": "github"
       },
       "original": {
         "owner": "nixos",
-        "ref": "pull/305026/head",
+        "ref": "pull/290715/head",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -79,7 +79,7 @@
         "flake-utils": "flake-utils",
         "microvm": "microvm",
         "nixpkgs": "nixpkgs",
-        "nixpkgs-pnpm-update": "nixpkgs-pnpm-update"
+        "nixpkgs-pnpm-fetch": "nixpkgs-pnpm-fetch"
       }
     },
     "spectrum": {
