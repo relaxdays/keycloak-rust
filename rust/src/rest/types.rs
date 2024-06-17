@@ -1,51 +1,17 @@
-use serde::{Deserialize, Serialize};
+// don't look below, this is hacky shit
 
-use crate::{Error, ErrorKind};
+// first re-export all the generated types
+pub use self::generated::*;
 
-// re-export generated all the generated types in addition to our custom defined types
-pub use super::generated::types::*;
+// re-export custom types
+// explicit re-export for `self::policies::ClientPolicyRepresentation` as that's also part of the generated types
+pub use self::policies::{ClientPolicyRepresentation, *};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct RolePolicyRepresentationRoleDefinition {
-    pub id: String,
-    #[serde(default)]
-    pub required: bool,
+/// types generated from the keycloak openapi spec
+pub mod generated {
+    // make `rest::generated::types::*` available as `rest::types::generated::*` because lol lmao what the fuck
+    pub use crate::rest::generated::types::*;
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct RolePolicyRepresentation {
-    pub roles: Vec<RolePolicyRepresentationRoleDefinition>,
-    #[serde(flatten)]
-    pub policy: PolicyRepresentation,
-}
-
-impl TryFrom<PolicyRepresentation> for RolePolicyRepresentation {
-    type Error = Error;
-
-    fn try_from(mut value: PolicyRepresentation) -> Result<Self, Self::Error> {
-        let Some(policy_type) = value.type_.as_ref() else {
-            return Err(Error::new_kind(ErrorKind::MissingField("type".into())));
-        };
-
-        if policy_type != "role" {
-            return Err(Error::new_kind(ErrorKind::WrongType(
-                "role".into(),
-                policy_type.clone(),
-            )));
-        }
-        let Some(roles) = value.config.get("roles") else {
-            return Err(Error::new_kind(ErrorKind::MissingField(
-                "config.roles".into(),
-            )));
-        };
-        let roles = serde_json::from_str(&roles).map_err(crate::error::deserialize)?;
-
-        // clear config to make sure we don't serialize config when serializing this policy
-        value.config.clear();
-
-        Ok(Self {
-            roles,
-            policy: value,
-        })
-    }
-}
+/// concrete subtypes of [`PolicyRepresentation`]
+pub mod policies;
