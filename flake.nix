@@ -26,9 +26,9 @@
           keycloak = super.keycloak;
         };
         keycloak = self.keycloak-builder {
-          version = "unstable-2024-06-07";
-          rev = "b59c9d8431a4fda2aea02b53e0a88d74fc3a173d";
-          srcHash = "sha256-uIfP+pYYqxP9J35Fb2N60GInLnHN9lgdGYovQ1WKhjk=";
+          version = "unstable-2024-06-12";
+          rev = "60ebce8d853fdb7aa6a76d36724639ee595a9898";
+          srcHash = "sha256-oEFIfl0uvQGLEc3eZ6HDCqx5UjgT5qF2/DZHL2JHPNo=";
           patches = [
             # https://github.com/keycloak/keycloak/pull/26867
             (self.fetchpatch {
@@ -36,8 +36,8 @@
               hash = "sha256-KewvoZjqxSd30gs19aSU5PhWvrF0F1SXisKKhHTL9mM=";
             })
           ];
-          pnpmHash = "sha256-7HuJFU9TnqUhWtGquNkiJu3tZduEvZ0Z/Vy9nkzppV0=";
-          mvnHash = "sha256-Damu57iwey8V2KL7Gvq0RmYJQPppPiHfFeoeoH6LQMs=";
+          pnpmHash = "sha256-+0YbkDfXczQxZ+1DarVaZi6Od+DL71uSlM2LY/0kzvs=";
+          mvnHash = "sha256-Yn6hO5MOGXdEfJsttqnEugs71qQjZzsZhkHm/bDmFqM=";
         };
         keycloak-openapi = self.keycloak.api;
         keycloak-api-rust = self.callPackage ./nix/crate {};
