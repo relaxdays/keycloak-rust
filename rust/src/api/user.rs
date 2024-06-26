@@ -9,6 +9,9 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// user-related methods of the keycloak api
 pub trait KeycloakUserExt {
+    /// get all users
+    fn users(&self) -> impl Future<Output = Result<Vec<UserRepresentation>>> + Send;
+
     /// get a single user by their username
     fn user_by_name(
         &self,
@@ -37,6 +40,38 @@ pub trait KeycloakUserExt {
 }
 
 impl<A: crate::AuthenticationProvider + Send + Sync> KeycloakUserExt for crate::Keycloak<A> {
+    #[tracing::instrument(skip(self))]
+    async fn users(&self) -> Result<Vec<UserRepresentation>> {
+        self.refresh_if_necessary().await?;
+        let api_client = self.api_client.read().await;
+
+        let response = paginate_api!(|first, max| {
+            api_client
+                .get_realm_users(
+                    &self.config.realm,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    Some(first),
+                    None,
+                    None,
+                    None,
+                    None,
+                    Some(max),
+                    None,
+                    None,
+                    None,
+                )
+                .await
+                .map_err(crate::error::progenitor)?
+                .into_inner()
+        });
+
+        Ok(response)
+    }
+
     #[tracing::instrument(skip(self))]
     async fn user_by_name(&self, username: &str) -> Result<UserRepresentation> {
         self.refresh_if_necessary().await?;
