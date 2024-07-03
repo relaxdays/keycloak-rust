@@ -160,6 +160,7 @@ impl<A: crate::AuthenticationProvider + Send + Sync> KeycloakRoleExt for crate::
                         &self.config.realm,
                         client_id,
                         role_name,
+                        None,
                         Some(first),
                         Some(max),
                     )
@@ -173,6 +174,7 @@ impl<A: crate::AuthenticationProvider + Send + Sync> KeycloakRoleExt for crate::
                     .get_realm_role_by_name_users(
                         &self.config.realm,
                         role_name,
+                        None,
                         Some(first),
                         Some(max),
                     )

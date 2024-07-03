@@ -26,13 +26,13 @@
           keycloak = super.keycloak;
         };
         keycloak = self.keycloak-builder {
-          version = "unstable-2024-06-28";
-          rev = "287916997e76642bd68e3069f0b0da1884b1daac";
-          srcHash = "sha256-j5kv/UNSVVZsZA7fL2VyHWnuf2Y8a2UI/KceJKZ5w+k=";
+          version = "unstable-2024-07-03";
+          rev = "02d64d959c088815fbb3809106d8967dd7524a81";
+          srcHash = "sha256-ae/cORywijzvG/qMaX2tAMSqOwUgmvr9HQl6k/Afcpo=";
           patches = [
             # https://github.com/keycloak/keycloak/pull/26867
             (self.fetchpatch {
-              url = "https://github.com/keycloak/keycloak/pull/26867/commits/4540cec11dc4f9cdd107cb6df8ded8ff41b500b1.patch";
+              url = "https://github.com/keycloak/keycloak/pull/26867/commits/7d6dd411b33b30d90428e474b6f0e4a671c87b58.patch";
               hash = "sha256-KewvoZjqxSd30gs19aSU5PhWvrF0F1SXisKKhHTL9mM=";
             })
           ];
