@@ -61,20 +61,6 @@
             passwordFile = "${pkgs.writeText "pwd" "somelongrandomstringidontcare"}";
           };
         };
-        systemd.services.keycloak = {
-          path = with pkgs; [curl jq];
-          postStart = ''
-            set +e
-            while true; do
-              if ! kill -0 "$MAINPID"; then exit 1; fi
-              status="$(set -o pipefail; curl -Ss http://localhost:9000/health | jq -r '.status')"
-              exit="$?"
-              if [[ "$exit" -eq 0 && "$status" == "UP" ]]; then break; fi
-              sleep 1
-            done
-            set -e
-          '';
-        };
         networking.firewall.allowedTCPPorts = [80];
       };
       lib.build-keycloak-vm = {
